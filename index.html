@@ -192,16 +192,7 @@ body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvet
         </div>
         <div class="field">
           <label>身份 / 层次 <span class="req">*</span></label>
-          <div class="chips" id="grpIdent">
-            <div class="chip" onclick="pickChip('grpIdent','本科',this)">本科</div>
-            <div class="chip" onclick="pickChip('grpIdent','硕士',this)">硕士</div>
-            <div class="chip" onclick="pickChip('grpIdent','高中毕业生',this)">高中毕业生</div>
-            <div class="chip" onclick="pickChip('grpIdent','__custom__',this)">年级自填 ✏️</div>
-          </div>
-          <input type="hidden" id="f_ident">
-          <div class="custom-input" id="customGradeBox">
-            <input id="f_grade_custom" type="text" placeholder="请填写年级，如：本科 23 级">
-          </div>
+          <input id="f_ident" type="text" placeholder="如本科24级 / 研究生23级" required>
         </div>
       </div>
 
@@ -379,12 +370,8 @@ function pickChip(grp, val, el) {
 function handleSubmit(e) {
   e.preventDefault();
   if (!hasSig) { toast('请完成电子签名'); return; }
-  var identVal = document.getElementById('f_ident').value;
-  if (!identVal) {
-    var cust = document.getElementById('f_grade_custom').value.trim();
-    if (!cust) { toast('请选择或填写身份 / 年级'); return; }
-    identVal = cust;
-  }
+  var identVal = document.getElementById('f_ident').value.trim();
+  if (!identVal) { toast('请填写身份 / 层次'); return; }
   if (!document.getElementById('f_politic').value) { toast('请选择政治面貌'); return; }
   if (!document.getElementById('f_poor').value) { toast('请选择是否在档贫困生'); return; }
 
@@ -427,8 +414,6 @@ function handleSubmit(e) {
 function resetForm() {
   document.getElementById('mainForm').reset();
   document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('on'); });
-  document.getElementById('customGradeBox').classList.remove('show');
-  document.getElementById('f_ident').value = '';
   document.getElementById('f_politic').value = '';
   document.getElementById('f_poor').value = '';
   clearSig();
