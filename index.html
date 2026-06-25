@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>人员信息收集</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+/* ===== 配置区 - 管理员修改这里 =====
+   ADMIN_PASSWORD : 收集端登录密码
+   SCRIPT_URL     : Google Apps Script 部署地址（填写后数据才能汇总）
+                    留空则仅保存在填写者自己的设备，管理员看不到别人的数据
+   ===================================== */
+
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --border: rgba(0,0,0,0.1);
+  --text: #1c1c1e;
+  --sub: #6e6e73;
+  --hint: #aeaeb2;
+  --blue: #185FA5;
+  --blue-light: #e6f1fb;
+  --red: #E24B4A;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e;
+    --card: #2c2c2e;
+    --border: rgba(255,255,255,0.1);
+    --text: #f5f5f7;
+    --sub: #98989d;
+    --hint: #636366;
+    --blue-light: #0c2a4a;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvetica Neue", sans-serif; color: var(--text); min-height: 100vh; }
+.wrap { max-width: 480px; margin: 0 auto; padding: 16px 14px 32px; }
+.page-header { text-align: center; padding: 20px 0 16px; }
+.page-header h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.page-header p { font-size: 13px; color: var(--sub); }
+.card { background: var(--card); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 16px; margin-bottom: 12px; }
+.sec-title { font-size: 11px; font-weight: 600; color: var(--sub); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 14px; display: flex; align-items: center; gap: 5px; }
+.field { margin-bottom: 13px; }
+.field:last-child { margin-bottom: 0; }
+.field label { display: block; font-size: 13px; color: var(--sub); margin-bottom: 5px; }
+.req { color: var(--red); }
+.field input, .field select {
+  width: 100%; height: 40px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  padding: 0 12px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chips { display: flex; gap: 7px; flex-wrap: wrap; }
+.chip {
+  padding: 7px 14px; border: 0.5px solid var(--border);
+  border-radius: 20px; font-size: 14px; cursor: pointer;
+  color: var(--sub); background: var(--bg);
+  transition: all 0.15s; white-space: nowrap; user-select: none;
+}
+.chip.on { border-color: var(--blue); background: var(--blue-light); color: var(--blue); font-weight: 500; }
+.custom-input { margin-top: 8px; display: none; }
+.custom-input.show { display: block; }
+.sig-box { border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden; position: relative; }
+.sig-box canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; }
+.sig-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 14px; color: var(--hint); pointer-events: none; user-select: none; }
+.sig-footer { display: flex; justify-content: flex-end; padding: 6px 10px; border-top: 0.5px solid var(--border); }
+.btn-ghost { font-size: 12px; color: var(--sub); cursor: pointer; padding: 4px 10px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+.btn-submit { width: 100%; height: 48px; background: var(--blue); color: #fff; border: none; border-radius: var(--radius); font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 4px; letter-spacing: 1px; }
+.btn-submit:active { opacity: 0.85; transform: scale(0.99); }
+.btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.footer-tip { text-align: center; padding: 20px 0 8px; }
+.admin-link { font-size: 11px; color: var(--hint); cursor: default; user-select: none; }
+.success-screen { display: none; text-align: center; padding: 60px 20px; }
+.success-screen.show { display: block; }
+.success-icon { font-size: 56px; color: #1D9E75; margin-bottom: 16px; }
+.success-screen h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+.success-screen p { font-size: 14px; color: var(--sub); line-height: 1.6; }
+.btn-again { margin-top: 24px; padding: 12px 32px; border: 0.5px solid var(--border); border-radius: var(--radius); background: var(--card); color: var(--text); font-size: 15px; cursor: pointer; }
+
+/* ADMIN */
+#adminView { display: none; }
+.admin-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 0 12px; }
+.admin-header h2 { font-size: 18px; font-weight: 600; }
+.btn-logout { font-size: 13px; color: var(--sub); cursor: pointer; padding: 6px 12px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--card); }
+.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.stat { background: var(--card); border-radius: var(--radius); border: 0.5px solid var(--border); padding: 14px; text-align: center; }
+.stat-n { font-size: 28px; font-weight: 600; color: var(--blue); }
+.stat-l { font-size: 12px; color: var(--sub); margin-top: 3px; }
+.action-row { display: flex; gap: 8px; margin-bottom: 12px; }
+.btn-action { flex: 1; height: 40px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--text); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.btn-action:hover { border-color: var(--blue); color: var(--blue); }
+.btn-danger-action { flex: 1; height: 40px; border: 0.5px solid rgba(226,75,74,0.3); border-radius: var(--radius-sm); background: var(--card); color: var(--red); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.search-wrap { margin-bottom: 10px; }
+.search-wrap input { width: 100%; height: 38px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--card); color: var(--text); font-size: 14px; padding: 0 12px; outline: none; }
+.rec { padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+.rec:last-child { border-bottom: none; }
+.rec-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+.rec-name { font-size: 15px; font-weight: 500; }
+.rec-time { font-size: 11px; color: var(--hint); }
+.rec-info { font-size: 13px; color: var(--sub); line-height: 1.7; }
+.rec-sig { height: 38px; margin-top: 6px; border: 0.5px solid var(--border); border-radius: 4px; background: #fff; }
+.empty { text-align: center; padding: 32px 0; color: var(--hint); font-size: 14px; }
+.badge { display: inline-flex; align-items: center; justify-content: center; background: var(--blue-light); color: var(--blue); border-radius: 10px; font-size: 11px; padding: 1px 8px; font-weight: 500; }
+.tag-poor { display: inline-block; background: #FAECE7; color: #D85A30; border-radius: 4px; font-size: 11px; padding: 1px 6px; margin-left: 4px; }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(28,28,30,0.9); color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; white-space: nowrap; backdrop-filter: blur(8px); }
+.toast.show { opacity: 1; }
+
+/* PASSWORD MODAL */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 999; }
+.modal-bg.show { display: flex; }
+.modal { background: var(--card); border-radius: var(--radius); padding: 24px; width: 280px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.modal p { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+.modal input { width: 100%; height: 40px; border: 0.5px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-size: 15px; padding: 0 12px; outline: none; margin-bottom: 12px; }
+.modal input:focus { border-color: var(--blue); }
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns button { flex: 1; height: 38px; border-radius: var(--radius-sm); font-size: 14px; cursor: pointer; border: 0.5px solid var(--border); }
+.modal-btns .btn-confirm { background: var(--blue); color: #fff; border-color: var(--blue); font-weight: 500; }
+.modal-btns .btn-cancel { background: var(--card); color: var(--sub); }
+</style>
+</head>
+<body>
+
+<!-- ===== 填写端 ===== -->
+<div id="formView">
+  <div class="wrap">
+    <div class="page-header">
+      <h1>人员信息收集</h1>
+      <p>请如实填写以下信息，带 <span class="req">*</span> 为必填项</p>
+    </div>
+
+    <!-- 提交成功画面 -->
+    <div class="success-screen" id="successScreen">
+      <div class="success-icon"><i class="ti ti-circle-check"></i></div>
+      <h2>提交成功</h2>
+      <p>您的信息已记录，感谢配合！</p>
+      <button class="btn-again" onclick="resetForm()">再次填写</button>
+    </div>
+
+    <form id="mainForm" onsubmit="handleSubmit(event)" style="">
+
+      <!-- 基本信息 -->
+      <div class="card">
+        <div class="sec-title"><i class="ti ti-user" aria-hidden="true"></i> 基本信息</div>
+        <div class="field">
+          <label>姓名 <span class="req">*</span></label>
+          <input id="f_name" type="text" placeholder="请输入真实姓名" autocomplete="name" required>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>联系方式 <span class="req">*</span></label>
+            <input id="f_phone" type="tel" placeholder="手机号" autocomplete="tel" required>
+          </div>
+          <div class="field">
+            <label>学号 <span class="req">*</span></label>
+            <input id="f_stuid" type="text" placeholder="学号" required>
+          </div>
+        </div>
+        <div class="field">
+          <label>身份证号 <span class="req">*</span></label>
+          <input id="f_idcard" type="text" placeholder="18 位身份证号" maxlength="18" required>
+        </div>
+      </div>
+
+      <!-- 学籍信息 -->
+      <div class="card">
+        <div class="sec-title"><i class="ti ti-school" aria-hidden="true"></i> 学籍信息</div>
+        <div class="field">
+          <label>学校 <span class="req">*</span></label>
+          <input id="f_school" type="text" placeholder="所在学校全称" required>
+        </div>
+        <div class="field">
+          <label>学院 <span class="req">*</span></label>
+          <input id="f_college" type="text" placeholder="所在学院" required>
+        </div>
+        <div class="field">
+          <label>专业 <span class="req">*</span></label>
+          <input id="f_major" type="text" placeholder="所学专业" required>
+        </div>
+        <div class="field">
+          <label>身份 / 层次 <span class="req">*</span></label>
+          <div class="chips" id="grpIdent">
+            <div class="chip" onclick="pickChip('grpIdent','本科',this)">本科</div>
+            <div class="chip" onclick="pickChip('grpIdent','硕士',this)">硕士</div>
+            <div class="chip" onclick="pickChip('grpIdent','高中毕业生',this)">高中毕业生</div>
+            <div class="chip" onclick="pickChip('grpIdent','__custom__',this)">年级自填 ✏️</div>
+          </div>
+          <input type="hidden" id="f_ident">
+          <div class="custom-input" id="customGradeBox">
+            <input id="f_grade_custom" type="text" placeholder="请填写年级，如：本科 23 级">
+          </div>
+        </div>
+      </div>
+
+      <!-- 个人情况 -->
+      <div class="card">
+        <div class="sec-title"><i class="ti ti-map-pin" aria-hidden="true"></i> 个人情况</div>
+        <div class="field">
+          <label>籍贯 <span class="req">*</span></label>
+          <input id="f_hometown" type="text" placeholder="省 / 市 / 区（县）" required>
+        </div>
+        <div class="field">
+          <label>政治面貌 <span class="req">*</span></label>
+          <div class="chips" id="grpPolitic">
+            <div class="chip" onclick="pickChip('grpPolitic','中共党员',this)">中共党员</div>
+            <div class="chip" onclick="pickChip('grpPolitic','预备党员',this)">预备党员</div>
+            <div class="chip" onclick="pickChip('grpPolitic','共青团员',this)">共青团员</div>
+            <div class="chip" onclick="pickChip('grpPolitic','群众',this)">群众</div>
+          </div>
+          <input type="hidden" id="f_politic">
+        </div>
+        <div class="field">
+          <label>是否在档贫困生 <span class="req">*</span></label>
+          <div class="chips" id="grpPoor">
+            <div class="chip" onclick="pickChip('grpPoor','是',this)">是</div>
+            <div class="chip" onclick="pickChip('grpPoor','否',this)">否</div>
+          </div>
+          <input type="hidden" id="f_poor">
+        </div>
+      </div>
+
+      <!-- 电子签名 -->
+      <div class="card">
+        <div class="sec-title"><i class="ti ti-writing" aria-hidden="true"></i> 电子签名 <span class="req">*</span></div>
+        <div class="sig-box">
+          <canvas id="sigCanvas" height="120"></canvas>
+          <div class="sig-hint" id="sigHint">请在此处手写签名</div>
+          <div class="sig-footer">
+            <button type="button" class="btn-ghost" onclick="clearSig()"><i class="ti ti-eraser" aria-hidden="true"></i> 清除重签</button>
+          </div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-submit" id="submitBtn">提 交 信 息</button>
+    </form>
+
+    <!-- 隐藏的管理员入口：点击 5 次 -->
+    <div class="footer-tip">
+      <span class="admin-link" id="adminTrigger" onclick="triggerAdminClick()">© 人员信息收集系统</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 收集端 ===== -->
+<div id="adminView">
+  <div class="wrap">
+    <div class="admin-header">
+      <h2><i class="ti ti-database" aria-hidden="true"></i> 收集端</h2>
+      <button class="btn-logout" onclick="logout()"><i class="ti ti-logout" aria-hidden="true"></i> 退出</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat">
+        <div class="stat-n" id="s_total">0</div>
+        <div class="stat-l">总记录数</div>
+      </div>
+      <div class="stat">
+        <div class="stat-n" id="s_poor">0</div>
+        <div class="stat-l">在档贫困生</div>
+      </div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-action" onclick="refreshData()"><i class="ti ti-refresh" aria-hidden="true"></i> 刷新数据</button>
+      <button class="btn-action" onclick="exportExcel()"><i class="ti ti-download" aria-hidden="true"></i> 导出 Excel</button>
+      <button class="btn-danger-action" onclick="clearAll()"><i class="ti ti-trash" aria-hidden="true"></i> 清空</button>
+    </div>
+
+    <div class="search-wrap">
+      <input id="searchInput" placeholder="搜索姓名 / 学号 / 学院…" oninput="renderList()">
+    </div>
+
+    <div class="card">
+      <div class="sec-title">记录列表 <span class="badge" id="listCount" style="margin-left:6px;">0</span></div>
+      <div id="recordList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 密码弹窗 -->
+<div class="modal-bg" id="pwModal">
+  <div class="modal">
+    <h3><i class="ti ti-lock" aria-hidden="true"></i> 收集端验证</h3>
+    <p>请输入管理员密码</p>
+    <input type="password" id="pwInput" placeholder="密码" onkeydown="if(event.key==='Enter')checkPw()">
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closePwModal()">取消</button>
+      <button class="btn-confirm" onclick="checkPw()">确认</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ============================================================
+//  ★ 配置区 — 仅需修改这两行
+// ============================================================
+var ADMIN_PASSWORD = 'admin2024';   // 收集端密码，请修改为自己的密码
+var SCRIPT_URL = '';                // Google Apps Script 部署 URL（留空则只存本地）
+// ============================================================
+
+var DB_KEY = 'survey_records_v3';
+var hasSig = false;
+var adminClickCount = 0;
+var adminClickTimer = null;
+
+// ----- 签名板 -----
+var canvas = document.getElementById('sigCanvas');
+var ctx = canvas.getContext('2d');
+function resizeCanvas() {
+  var w = canvas.parentElement.clientWidth;
+  canvas.width = w; canvas.height = 120;
+  ctx.strokeStyle = '#185FA5'; ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+}
+resizeCanvas();
+var drawing = false, lx = 0, ly = 0;
+function gp(e) {
+  var r = canvas.getBoundingClientRect();
+  var s = e.touches ? e.touches[0] : e;
+  return { x: (s.clientX - r.left) * (canvas.width / r.width), y: (s.clientY - r.top) * (canvas.height / r.height) };
+}
+canvas.addEventListener('mousedown', function(e) { drawing = true; var p = gp(e); lx = p.x; ly = p.y; });
+canvas.addEventListener('mousemove', function(e) {
+  if (!drawing) return;
+  var p = gp(e);
+  ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+  lx = p.x; ly = p.y; hasSig = true;
+  document.getElementById('sigHint').style.display = 'none';
+});
+canvas.addEventListener('mouseup', function() { drawing = false; });
+canvas.addEventListener('touchstart', function(e) { e.preventDefault(); drawing = true; var p = gp(e); lx = p.x; ly = p.y; }, { passive: false });
+canvas.addEventListener('touchmove', function(e) {
+  e.preventDefault(); if (!drawing) return;
+  var p = gp(e);
+  ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(p.x, p.y); ctx.stroke();
+  lx = p.x; ly = p.y; hasSig = true;
+  document.getElementById('sigHint').style.display = 'none';
+}, { passive: false });
+canvas.addEventListener('touchend', function() { drawing = false; });
+function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasSig = false; document.getElementById('sigHint').style.display = ''; }
+
+// ----- 单选芯片 -----
+function pickChip(grp, val, el) {
+  document.querySelectorAll('#' + grp + ' .chip').forEach(function(c) { c.classList.remove('on'); });
+  el.classList.add('on');
+  if (grp === 'grpIdent') {
+    var box = document.getElementById('customGradeBox');
+    if (val === '__custom__') { box.classList.add('show'); document.getElementById('f_ident').value = ''; }
+    else { box.classList.remove('show'); document.getElementById('f_ident').value = val; }
+  } else {
+    var map = { grpPolitic: 'f_politic', grpPoor: 'f_poor' };
+    if (map[grp]) document.getElementById(map[grp]).value = val;
+  }
+}
+
+// ----- 提交表单 -----
+function handleSubmit(e) {
+  e.preventDefault();
+  if (!hasSig) { toast('请完成电子签名'); return; }
+  var identVal = document.getElementById('f_ident').value;
+  if (!identVal) {
+    var cust = document.getElementById('f_grade_custom').value.trim();
+    if (!cust) { toast('请选择或填写身份 / 年级'); return; }
+    identVal = cust;
+  }
+  if (!document.getElementById('f_politic').value) { toast('请选择政治面貌'); return; }
+  if (!document.getElementById('f_poor').value) { toast('请选择是否在档贫困生'); return; }
+
+  var rec = {
+    提交时间: new Date().toLocaleString('zh-CN'),
+    姓名: document.getElementById('f_name').value.trim(),
+    联系方式: document.getElementById('f_phone').value.trim(),
+    学号: document.getElementById('f_stuid').value.trim(),
+    身份证号: document.getElementById('f_idcard').value.trim(),
+    学校: document.getElementById('f_school').value.trim(),
+    学院: document.getElementById('f_college').value.trim(),
+    专业: document.getElementById('f_major').value.trim(),
+    身份层次: identVal,
+    籍贯: document.getElementById('f_hometown').value.trim(),
+    政治面貌: document.getElementById('f_politic').value,
+    是否在档贫困生: document.getElementById('f_poor').value,
+    签名: canvas.toDataURL('image/png')
+  };
+
+  var btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '提交中…';
+
+  // 先存本地
+  var rs = getRecords(); rs.push(rec); saveRecords(rs);
+
+  // 再发远端（若配置了 SCRIPT_URL）
+  if (SCRIPT_URL) {
+    var payload = Object.assign({}, rec); delete payload['签名']; // 签名不上传，减小体积
+    fetch(SCRIPT_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    }).catch(function() {});
+  }
+
+  btn.disabled = false; btn.textContent = '提 交 信 息';
+  document.getElementById('mainForm').style.display = 'none';
+  document.getElementById('successScreen').classList.add('show');
+}
+
+function resetForm() {
+  document.getElementById('mainForm').reset();
+  document.querySelectorAll('.chip').forEach(function(c) { c.classList.remove('on'); });
+  document.getElementById('customGradeBox').classList.remove('show');
+  document.getElementById('f_ident').value = '';
+  document.getElementById('f_politic').value = '';
+  document.getElementById('f_poor').value = '';
+  clearSig();
+  document.getElementById('successScreen').classList.remove('show');
+  document.getElementById('mainForm').style.display = '';
+}
+
+// ----- 本地存储 -----
+function getRecords() { try { return JSON.parse(localStorage.getItem(DB_KEY) || '[]'); } catch(e) { return []; } }
+function saveRecords(r) { localStorage.setItem(DB_KEY, JSON.stringify(r)); }
+
+// ----- 管理员入口（点 5 次） -----
+function triggerAdminClick() {
+  adminClickCount++;
+  clearTimeout(adminClickTimer);
+  adminClickTimer = setTimeout(function() { adminClickCount = 0; }, 2000);
+  if (adminClickCount >= 5) { adminClickCount = 0; showPwModal(); }
+}
+
+// ----- 密码弹窗 -----
+function showPwModal() { document.getElementById('pwModal').classList.add('show'); setTimeout(function() { document.getElementById('pwInput').focus(); }, 100); }
+function closePwModal() { document.getElementById('pwModal').classList.remove('show'); document.getElementById('pwInput').value = ''; }
+function checkPw() {
+  if (document.getElementById('pwInput').value === ADMIN_PASSWORD) {
+    closePwModal(); enterAdmin();
+  } else { toast('密码错误'); document.getElementById('pwInput').value = ''; document.getElementById('pwInput').focus(); }
+}
+
+// ----- 切换视图 -----
+function enterAdmin() {
+  document.getElementById('formView').style.display = 'none';
+  document.getElementById('adminView').style.display = 'block';
+  refreshData();
+}
+function logout() {
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('formView').style.display = 'block';
+}
+
+// ----- 刷新 / 渲染 -----
+function refreshData() {
+  // 如果配置了远端，尝试拉取（GET 返回 JSON 数组）
+  if (SCRIPT_URL) {
+    fetch(SCRIPT_URL + '?action=list')
+      .then(function(r) { return r.json(); })
+      .then(function(rows) {
+        if (Array.isArray(rows) && rows.length > 0) {
+          // 合并远端与本地（远端优先，去重用学号+提交时间）
+          var local = getRecords();
+          var merged = rows.map(function(r) { return typeof r === 'object' ? r : {}; });
+          local.forEach(function(lr) {
+            var exists = merged.some(function(mr) { return mr['学号'] === lr['学号'] && mr['提交时间'] === lr['提交时间']; });
+            if (!exists) merged.push(lr);
+          });
+          saveRecords(merged);
+        }
+        renderAdmin();
+      })
+      .catch(function() { renderAdmin(); });
+  } else {
+    renderAdmin();
+  }
+}
+
+function renderAdmin() {
+  var rs = getRecords();
+  document.getElementById('s_total').textContent = rs.length;
+  document.getElementById('s_poor').textContent = rs.filter(function(r) { return r['是否在档贫困生'] === '是'; }).length;
+  renderList();
+}
+
+function renderList() {
+  var rs = getRecords();
+  var q = (document.getElementById('searchInput').value || '').toLowerCase();
+  if (q) rs = rs.filter(function(r) {
+    return (r['姓名'] || '').toLowerCase().includes(q)
+      || (r['学号'] || '').toLowerCase().includes(q)
+      || (r['学院'] || '').toLowerCase().includes(q)
+      || (r['专业'] || '').toLowerCase().includes(q);
+  });
+  document.getElementById('listCount').textContent = rs.length;
+  if (!rs.length) {
+    document.getElementById('recordList').innerHTML = '<div class="empty"><i class="ti ti-inbox" style="font-size:28px;display:block;margin-bottom:8px;" aria-hidden="true"></i>暂无记录</div>';
+    return;
+  }
+  var html = '';
+  rs.slice().reverse().forEach(function(r) {
+    var poorTag = r['是否在档贫困生'] === '是' ? '<span class="tag-poor">贫困生</span>' : '';
+    html += '<div class="rec">';
+    html += '<div class="rec-top"><span class="rec-name">' + (r['姓名'] || '') + poorTag + '</span><span class="rec-time">' + (r['提交时间'] || '') + '</span></div>';
+    html += '<div class="rec-info">' + (r['学号'] || '') + ' · ' + (r['联系方式'] || '') + '<br>' + (r['学校'] || '') + ' · ' + (r['学院'] || '') + ' · ' + (r['专业'] || '') + ' · ' + (r['身份层次'] || '') + '<br>' + (r['籍贯'] || '') + ' · ' + (r['政治面貌'] || '') + '</div>';
+    if (r['签名']) html += '<img class="rec-sig" src="' + r['签名'] + '" alt="签名">';
+    html += '</div>';
+  });
+  document.getElementById('recordList').innerHTML = html;
+}
+
+// ----- 导出 Excel -----
+function exportExcel() {
+  var rs = getRecords();
+  if (!rs.length) { toast('暂无数据可导出'); return; }
+  var data = rs.map(function(r) {
+    return { 提交时间: r['提交时间'], 姓名: r['姓名'], 联系方式: r['联系方式'], 学号: r['学号'], 身份证号: r['身份证号'], 学校: r['学校'], 学院: r['学院'], 专业: r['专业'], 身份层次: r['身份层次'], 籍贯: r['籍贯'], 政治面貌: r['政治面貌'], 是否在档贫困生: r['是否在档贫困生'] };
+  });
+  var ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{ wch: 18 }, { wch: 8 }, { wch: 13 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '人员信息');
+  XLSX.writeFile(wb, '人员信息_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '') + '.xlsx');
+  toast('导出成功');
+}
+
+function clearAll() {
+  if (confirm('确认清空全部本地记录？此操作不可撤销。')) {
+    localStorage.removeItem(DB_KEY);
+    renderAdmin();
+    toast('已清空本地记录');
+  }
+}
+
+// ----- Toast -----
+function toast(msg, d) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, d || 2200);
+}
+</script>
+</body>
+</html>
