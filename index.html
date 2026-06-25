@@ -297,9 +297,6 @@ body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvet
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script>var module={exports:{}};var exports=module.exports;</script>
-<script src="https://cdn.jsdelivr.net/npm/@cloudbase/js-sdk/dist/index.cjs.js"></script>
-<script>var cloudbase=module.exports.default||module.exports;</script>
 <script>
 // ============================================================
 //  ★ 配置区 — 仅需修改这两行
@@ -404,10 +401,13 @@ function handleSubmit(e) {
   // 再发远端（腾讯云开发 CloudBase）
   if (TCB_ENV) {
     try {
-      var app = cloudbase.init({ env: TCB_ENV, region: 'ap-shanghai', accessKey: TCB_KEY });
       var payload = {};
       ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
-      app.database().collection('lancang-survey').add(payload).catch(function(){});
+      fetch('https://lancang-survey-d9gq8qlab37a2f08d-1447290384.ap-shanghai.app.tcloudbase.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(function(){});
     } catch(e) {}
   }
 
