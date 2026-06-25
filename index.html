@@ -402,7 +402,7 @@ function handleSubmit(e) {
   if (TCB_ENV) {
     try {
       var payload = {};
-      ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
+      ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生','签名'].forEach(function(k){ payload[k] = rec[k] || ''; });
       fetch('https://lancang-survey-d9gq8qlab37a2f08d-1447290384.ap-shanghai.app.tcloudbase.com/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
