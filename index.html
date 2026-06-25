@@ -311,7 +311,7 @@ body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvet
 //  ★ 配置区 — 仅需修改这两行
 // ============================================================
 var ADMIN_PASSWORD = 'admin2024';   // 收集端密码，请修改为自己的密码
-var SCRIPT_URL = '';                // Google Apps Script 部署 URL（留空则只存本地）
+var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw61DQS7a7DdZBcrgnleqeuyYQbhCG5KR2iPwB7npiD_-bLGVgTE3xYT1HHPdcjkAO0uA/exec';
 // ============================================================
 
 var DB_KEY = 'survey_records_v3';
@@ -354,6 +354,12 @@ canvas.addEventListener('touchmove', function(e) {
 }, { passive: false });
 canvas.addEventListener('touchend', function() { drawing = false; });
 function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); hasSig = false; document.getElementById('sigHint').style.display = ''; }
+function compressSig() {
+  var small = document.createElement('canvas');
+  small.width = 300; small.height = 90;
+  small.getContext('2d').drawImage(canvas, 0, 0, 300, 90);
+  return small.toDataURL('image/jpeg', 0.7);
+}
 
 // ----- 单选芯片 -----
 function pickChip(grp, val, el) {
@@ -395,7 +401,7 @@ function handleSubmit(e) {
     籍贯: document.getElementById('f_hometown').value.trim(),
     政治面貌: document.getElementById('f_politic').value,
     是否在档贫困生: document.getElementById('f_poor').value,
-    签名: canvas.toDataURL('image/png')
+    签名: compressSig()
   };
 
   var btn = document.getElementById('submitBtn');
@@ -406,11 +412,10 @@ function handleSubmit(e) {
 
   // 再发远端（若配置了 SCRIPT_URL）
   if (SCRIPT_URL) {
-    var payload = Object.assign({}, rec); delete payload['签名']; // 签名不上传，减小体积
     fetch(SCRIPT_URL, {
       method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(rec)
     }).catch(function() {});
   }
 
