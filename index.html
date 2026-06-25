@@ -459,28 +459,23 @@ function logout() {
 }
 
 // ----- 刷新 / 渲染 -----
+var TCB_LIST_URL = 'https://lancang-survey-d9gq8qlab37a2f08d-1447290384.ap-shanghai.app.tcloudbase.com/submit';
 function refreshData() {
-  // 如果配置了远端，尝试拉取（GET 返回 JSON 数组）
-  if (SCRIPT_URL) {
-    fetch(SCRIPT_URL + '?action=list')
-      .then(function(r) { return r.json(); })
-      .then(function(rows) {
-        if (Array.isArray(rows) && rows.length > 0) {
-          // 合并远端与本地（远端优先，去重用学号+提交时间）
-          var local = getRecords();
-          var merged = rows.map(function(r) { return typeof r === 'object' ? r : {}; });
-          local.forEach(function(lr) {
-            var exists = merged.some(function(mr) { return mr['学号'] === lr['学号'] && mr['提交时间'] === lr['提交时间']; });
-            if (!exists) merged.push(lr);
-          });
-          saveRecords(merged);
-        }
-        renderAdmin();
-      })
-      .catch(function() { renderAdmin(); });
-  } else {
-    renderAdmin();
-  }
+  fetch(TCB_LIST_URL + '?action=list')
+    .then(function(r) { return r.json(); })
+    .then(function(rows) {
+      if (Array.isArray(rows) && rows.length > 0) {
+        var local = getRecords();
+        var merged = rows.map(function(r) { return typeof r === 'object' ? r : {}; });
+        local.forEach(function(lr) {
+          var exists = merged.some(function(mr) { return mr['学号'] === lr['学号'] && mr['提交时间'] === lr['提交时间']; });
+          if (!exists) merged.push(lr);
+        });
+        saveRecords(merged);
+      }
+      renderAdmin();
+    })
+    .catch(function() { renderAdmin(); });
 }
 
 function renderAdmin() {
@@ -521,10 +516,10 @@ function exportExcel() {
   var rs = getRecords();
   if (!rs.length) { toast('暂无数据可导出'); return; }
   var data = rs.map(function(r) {
-    return { 提交时间: r['提交时间'], 姓名: r['姓名'], 联系方式: r['联系方式'], 学号: r['学号'], 身份证号: r['身份证号'], 学校: r['学校'], 学院: r['学院'], 专业: r['专业'], 身份层次: r['身份层次'], 籍贯: r['籍贯'], 政治面貌: r['政治面貌'], 是否在档贫困生: r['是否在档贫困生'] };
+    return { 提交时间: r['提交时间'], 姓名: r['姓名'], 联系方式: r['联系方式'], 学号: r['学号'], 身份证号: r['身份证号'], 学校: r['学校'], 学院: r['学院'], 专业: r['专业'], 身份层次: r['身份层次'], 籍贯: r['籍贯'], 政治面貌: r['政治面貌'], 是否在档贫困生: r['是否在档贫困生'], 签名: r['签名'] || '' };
   });
   var ws = XLSX.utils.json_to_sheet(data);
-  ws['!cols'] = [{ wch: 18 }, { wch: 8 }, { wch: 13 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }];
+  ws['!cols'] = [{ wch: 18 }, { wch: 8 }, { wch: 13 }, { wch: 12 }, { wch: 20 }, { wch: 14 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 60 }];
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '人员信息');
   XLSX.writeFile(wb, '人员信息_' + new Date().toLocaleDateString('zh-CN').replace(/\//g, '') + '.xlsx');
