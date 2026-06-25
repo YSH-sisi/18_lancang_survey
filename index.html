@@ -297,13 +297,16 @@ body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvet
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://imgcache.qq.com/qcloud/tcbjs/1.10.0/tcb.js"></script>
+<script>var module={exports:{}};var exports=module.exports;</script>
+<script src="https://cdn.jsdelivr.net/npm/@cloudbase/js-sdk/dist/index.cjs.js"></script>
+<script>var cloudbase=module.exports.default||module.exports;</script>
 <script>
 // ============================================================
 //  ★ 配置区 — 仅需修改这两行
 // ============================================================
 var ADMIN_PASSWORD = 'admin2024';   // 收集端密码，请修改为自己的密码
 var TCB_ENV = 'lancang-survey-d9gq8qlab37a2f08d';  // 腾讯云开发环境 ID
+var TCB_KEY = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjlkMWRjMzFlLWI0ZDAtNDQ4Yi1hNzZmLWIwY2M2M2Q4MTQ5OCJ9.eyJpc3MiOiJodHRwczovL2xhbmNhbmctc3VydmV5LWQ5Z3E4cWxhYjM3YTJmMDhkLmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJsYW5jYW5nLXN1cnZleS1kOWdxOHFsYWIzN2EyZjA4ZCIsImV4cCI6NDA4NjA4NzYxNywiaWF0IjoxNzgyNDA0NDE3LCJub25jZSI6IkFpclhXYjJyUlBLV0hxRDZqd2xTdlEiLCJhdF9oYXNoIjoiQWlyWFdiMnJSUEtXSHFENmp3bFN2USIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJsYW5jYW5nLXN1cnZleS1kOWdxOHFsYWIzN2EyZjA4ZCIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJ1c2VyX3R5cGUiOiIiLCJjbGllbnRfdHlwZSI6ImNsaWVudF91c2VyIiwiaXNfc3lzdGVtX2FkbWluIjpmYWxzZX0.eBPOMIxS7VpeX2oIi0PtuEyvinGt6UH_L7KCrtMeqpcG8u1xe8m0gAh1eBZvPzbYGbBKvh9QGOqNYumZf5s9kPE_N9uB64bHrKQZFyIblac81HMgRVgjYwlc_efz3rXmYppW8AQHqDCSbz9bm5y2CWwyC6L9BUFiS0E44c2HaceTeSKGPaUHHBI4Qhq0wEy5MIW86w2guH70rhEdC9RhB4RruTpkq93wg7HMwWKTTEpvRsj5a69cYKfU-_EJ_kPPn0DFvctMYKeW_yo7CC4v8Mocn3ayMmlvNBvr9kvF-ha2A6M2zsAAt17ZZEYN0cHL_VZrEJKyrI6dUQlgBG-DWw'; // 匿名访问令牌
 // ============================================================
 
 var DB_KEY = 'survey_records_v3';
@@ -401,12 +404,10 @@ function handleSubmit(e) {
   // 再发远端（腾讯云开发 CloudBase）
   if (TCB_ENV) {
     try {
-      var app = tcb.init({ env: TCB_ENV });
-      app.auth({ persistence: 'session' }).anonymousAuthProvider().signIn().then(function() {
-        var payload = {};
-        ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
-        app.database().collection('lancang-survey').add(payload).catch(function(){});
-      }).catch(function(){});
+      var app = cloudbase.init({ env: TCB_ENV, region: 'ap-shanghai', accessKey: TCB_KEY });
+      var payload = {};
+      ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
+      app.database().collection('lancang-survey').add(payload).catch(function(){});
     } catch(e) {}
   }
 
