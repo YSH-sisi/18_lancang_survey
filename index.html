@@ -297,12 +297,13 @@ body { background: var(--bg); font-family: -apple-system, "PingFang SC", "Helvet
 <div class="toast" id="toast"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn-go.cn/cloudbase/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
 <script>
 // ============================================================
 //  ★ 配置区 — 仅需修改这两行
 // ============================================================
 var ADMIN_PASSWORD = 'admin2024';   // 收集端密码，请修改为自己的密码
-var SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw61DQS7a7DdZBcrgnleqeuyYQbhCG5KR2iPwB7npiD_-bLGVgTE3xYT1HHPdcjkAO0uA/exec';
+var TCB_ENV = 'lancang-survey-d9gq8qlab37a2f08d';  // 腾讯云开发环境 ID
 // ============================================================
 
 var DB_KEY = 'survey_records_v3';
@@ -397,13 +398,16 @@ function handleSubmit(e) {
   // 先存本地
   var rs = getRecords(); rs.push(rec); saveRecords(rs);
 
-  // 再发远端（若配置了 SCRIPT_URL）用 GET 方式，穿透重定向
-  if (SCRIPT_URL) {
-    var payload = {};
-    ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
-    var params = Object.keys(payload).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(payload[k]); }).join('&');
-    var img = new Image();
-    img.src = SCRIPT_URL + '?' + params;
+  // 再发远端（腾讯云开发 CloudBase）
+  if (TCB_ENV) {
+    try {
+      var app = cloudbase.init({ env: TCB_ENV });
+      app.auth({ persistence: 'session' }).anonymousAuthProvider().signIn().then(function() {
+        var payload = {};
+        ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
+        app.database().collection('lancang-survey').add(payload).catch(function(){});
+      }).catch(function(){});
+    } catch(e) {}
   }
 
   btn.disabled = false; btn.textContent = '提 交 信 息';
