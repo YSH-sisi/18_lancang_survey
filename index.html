@@ -397,13 +397,13 @@ function handleSubmit(e) {
   // 先存本地
   var rs = getRecords(); rs.push(rec); saveRecords(rs);
 
-  // 再发远端（若配置了 SCRIPT_URL）
+  // 再发远端（若配置了 SCRIPT_URL）用 GET 方式，穿透重定向
   if (SCRIPT_URL) {
-    fetch(SCRIPT_URL, {
-      method: 'POST', mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(rec)
-    }).catch(function() {});
+    var payload = {};
+    ['提交时间','姓名','联系方式','学号','身份证号','学校','学院','专业','身份层次','籍贯','政治面貌','是否在档贫困生'].forEach(function(k){ payload[k] = rec[k] || ''; });
+    var params = Object.keys(payload).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(payload[k]); }).join('&');
+    var img = new Image();
+    img.src = SCRIPT_URL + '?' + params;
   }
 
   btn.disabled = false; btn.textContent = '提 交 信 息';
